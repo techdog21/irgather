@@ -1,9 +1,9 @@
 # Author Jerry Craft
 #
-# IRGather is a tool to pull the logs for a linux system, and put them into a zip file
+# IRGather is a tool to pull the logs for a linux / windows systems, and put them into a zip file
 # so an incident response review can be performed.
 #
-#
+# 12/21/2022 -- Linux side finished and used for Virco
 
 import os
 import sys
