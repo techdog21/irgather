@@ -10,6 +10,7 @@ import sys
 import json
 import shutil
 import psutil
+import subprocess
 import platform
 from datetime import datetime
 
@@ -47,7 +48,7 @@ def jsonMe(obj) -> json:
 def saveMe(fname:str, afile:str, obj:json) -> int:
     "Send me data to write, and I will."
     try:
-        sfile = open(fname + '/' + afile, 'w')
+        sfile = open(fname + '/' + afile, 'a')
         print(jsonMe(obj), file=sfile)
         sfile.close()
     except Exception as err:
@@ -65,8 +66,7 @@ def getServicesWin(fname:str):
     "Grab a list of services from the system."
     sfile = open(fname + '/services.txt', 'w')
     for proc in psutil.win_service_iter():
-        pDict = proc.as_dict()
-        print(jsonMe(pDict), file=sfile)
+        print(proc, file=sfile)
     sfile.close()
 
 def printMe(fname:str, aName:str, obj:str) -> None:
@@ -98,23 +98,28 @@ def findFiles(fname:str, dir:str, ext:str, fil:str):
 
 def cronCopy(fname:str):
     "Copy all CRON / APT files"
+    filLst = ['/etc/cron.allow', '/etc/cron.deny', '/etc/crontab', '/etc/anacrontab', '/var/spool/anacron/cron.weekly', '/var/spool/anacron/cron.monthly',
+        '/var/spool/anacron/cron.daily', '/var/spool/anacron/cron.hourly', '/etc/apt/sources.list', '/etc/apt/trusted.gpg', '/etc/apt/trustdb.gpg',
+        '/etc/resolv.conf', '/etc/hosts.allow', '/etc/hosts.deny', '/etc/centos-release', '/etc/enterprise-release', '/etc/oracle-release', '/etc/redhat-release', 
+        '/etc/system-release', '/etc/fstab', '/boot/grub/grub.cfg', '/boot/grub2/grub.cfg', '/etc/issues', '/etc/issues.net',
+        '/etc/insserv.conf', '/etc/localtime', '/etc/lsb-release', '/etc/pam.conf', '/etc/rsyslog.conf', '/etc/xinetd.conf', 
+        '/etc/netgroup', '/etc/nsswitch.conf', '/etc/ntp.conf', '/etc/yum.conf', '/etc/yum.repos.d', '/etc/chrony.conf', '/etc/chrony', '/etc/passwd', '/etc/group',
+        '/etc/timezone', '/etc/localtime']
+
+    dirLst = ['/etc/cron.daily/', '/ect/cron.hourly/', '/etc/cron.weekly/', '/etc/cron.monthly/', '/etc/modprobe.d/', '/etc/modules-load.d/', 
+        '/var/spool/at/', '/var/log/messages/', '/var/log/syslog.log','/etc/pam.d', '/etc/rsyslog.d', '/var/log']
+
     try:
-        print("***COPY CRON***")
-        if os.path.exists('/etc/cron.allow'): shutil.copyfile('/etc/cron.allow', fname + '/cron.allow')
-        if os.path.exists('/etc/cron.deny'): shutil.copy('/etc/cron.deny', fname + '/cron.deny')
-        if os.path.exists('/etc/crontab'): shutil.copy('/etc/crontab', fname + '/crontab')
-        if os.path.exists('/etc/anacrontab'): shutil.copy('/etc/anacrontab', fname + '/anacrontab')
-        if os.path.exists('/etc/cron.daily/'): shutil.copytree('/etc/cron.daily/', fname + '/cron.daily/')
-        if os.path.exists('/etc/cron.hourly/'): shutil.copytree('/etc/cron.hourly/', fname + '/cron.hourly/')
-        if os.path.exists('/etc/cron.weekly/'): shutil.copytree('/etc/cron.weekly/', fname + '/cron.weekly/')
-        if os.path.exists('/etc/cron.monthly/'): shutil.copytree('/etc/cron.monthly/', fname + '/cron.montly/')
-        if os.path.exists('/var/spool/anacron/cron.weekly'): shutil.copy('/var/spool/anacron/cron.weekly', fname + '/cron.weekly')
-        if os.path.exists('/var/spool/anacron/cron.monthly'): shutil.copy('/var/spool/anacron/cron.monthly', fname + '/cron.monthly')
-        if os.path.exists('/var/spool/anacron/cron.daily'): shutil.copy('/var/spool/anacron/cron.daily', fname + '/cron.daily')
-        if os.path.exists('/var/spool/anacron/cron.hourly'): shutil.copy('/var/spool/anacron/cron.hourly', fname + '/cron.hourly')
-        if os.path.exists('/etc/apt/sources.list'): shutil.copy('/etc/apt/sources.list', fname + '/sources.lst')
-        if os.path.exists('/etc/apt/trusted.gpg'): shutil.copy('/etc/apt/trusted.gpg', fname + '/apt-trust.gpg')
-        if os.path.exists('/etc/apt/trustdb.gpg'): shutil.copy('/etc/apt/trustdb.gpg', fname + '/apt-trustdb.gpg')
+        print("***COPY FILES***")
+        currDir = os.getcwd()
+        for item in filLst:
+            if os.path.exists(item):
+                fil = item.split('/')
+                x = len(fil)
+                shutil.copy(item, currDir + '/' + fname + '/' + fil[x-1])
+        for dir in dirLst:
+            if os.path.exists(dir): shutil.copytree(dir, fname + dir)
+
         # list files in path
         dir_list = os.listdir('/etc/')
         printMe(fname, 'cron-file-list.txt', dir_list)
@@ -122,17 +127,40 @@ def cronCopy(fname:str):
         print('***FINDAPT FILES***')
         findFiles(fname, '/etc/apt/trusted.gpg.d/', '*.gpg', '/pgp-files.txt')
         findFiles(fname, '/usr/share/keyrings/', '*.gpg', '/keyrings.txt')
-
     except IOError as err:
         print(err)
 
+def filewalk(fname):    
+        # filewalk and find particular extensions
+        print('***FILE WALK***')
+        dic = {}
+        ext = ('.asp','.aspx', '.phtml', '.php', '.php3', '.php4', '.php5', '.pl', '.cgi', '.jsp', '.jspx', '.jsw', '.jsv', '.jspf', '.cfm', '.cfml','.cfc','.dbm')
+        for path, dirc, files in os.walk('/'):
+            for name in files:
+                if name.endswith(ext):
+                    dic.update({'path': path})
+                    dic.update({'file': name})
+                    saveMe(fname, 'files.txt', dic)
+
+def linuxCommands(fname):
+    commands =['who -a', 'dmesg', 'lspci -v', 'ls /home -la', 'ls -R /home', 'ls -R /tmp']
+    print('***LINUXCOMMANDS***')
+    sfile = open(fname + '/shell-commands-executed.txt', 'w')
+    for command in commands:
+        process = subprocess.run(command, shell=True, check=True, stdout=subprocess.PIPE, universal_newlines=True)
+        output = process.stdout
+        print('Command:',output, file=sfile)
+        print('\n\n', file=sfile)
+    sfile.close()
+
+        
+
 def main():
-    try:
         # get date and time
         dtime = getDateTime()
         fname = dtime + localDir
         print("Number of cores in system", psutil.cpu_count())
-
+        print('System Running: ', platform.uname())
         # create our directory to safe stuff
         os.mkdir(fname)
         # get the disk space
@@ -161,12 +189,14 @@ def main():
         print('***SERVICES***')
         if osName == 'win32':
             getServicesWin(fname)
-        else:
+            filewalk(fname)
+        elif osName == 'linux':
             getLinuxServices(fname)
             cronCopy(fname)
-
-    except Exception as err:
-        print(f"Main Unexpected Error: {err=}, {type(err)=}")
+            filewalk(fname)
+            linuxCommands(fname)
+        else:
+            print('This system is neither windows or linux')
 
 if __name__ == "__main__":
     main()
